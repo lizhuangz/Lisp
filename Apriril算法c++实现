@@ -1,0 +1,185 @@
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <set>
+#include <map>
+#include <cstdio>
+#include <cmath>
+#include <cstring>
+#include <cstdlib>
+#include <ctype.h>
+#define CLR(x) memset(x,0,sizeof x)
+#define show_memory(x) cout<<sizeof(x)/(1024*1024.0)<<"MB"<<endl
+#define QAQ(i,n) for(unsigned int i=0;i<n;i++)
+using namespace std;
+string src="C:\\Users\\Administrator\\Desktop\\data.txt";
+void setIO(){freopen(src.c_str(),"r",stdin);}
+typedef long long int64;
+const double sp=0.2;
+const int N=100;
+struct item{
+    string id;
+    set<string> a;
+};
+vector<item> ans;
+vector<set<string> > fre_item[N];
+map<set<string>,int> hashmap;
+int fre_item_index;
+unsigned int sum;
+int s;
+void init()
+{
+    map<string,int> anc;
+    char a[1024];
+    while(gets(a))
+    {
+        item b;
+        char *f;
+        f=strtok(a," ");
+        b.id=f;
+        f=strtok(NULL," ");
+        while(f)
+        {
+            anc[f]++;
+            b.a.insert(f);
+            f=strtok(NULL," ");
+        }
+        ans.push_back(b);
+        b.a.clear();
+    }
+    s=ceil(ans.size()*sp);
+    sum=anc.size();
+    set<string> tmp;
+    for(map<string,int>::iterator p=anc.begin();p!=anc.end();p++)
+    {
+        if(p->second>=s)
+        {
+        tmp.insert(p->first);
+        hashmap[tmp]=p->second;
+        fre_item[1].push_back(tmp);
+        tmp.clear();
+        }
+    }
+}
+bool cut(set<string> &a)
+{
+    set<string> tmp,b;
+    for(set<string>::iterator p=a.begin();p!=a.end();p++)
+    {
+        tmp.clear();
+        b.clear();
+        b.insert(*p);
+        set_difference(a.begin(),a.end(),b.begin(),b.end(),inserter(tmp,tmp.begin()));
+        if(hashmap[tmp]<1)
+        return false;
+    }
+    return true;
+}
+bool find(set<string> &a,set<string> &b,set<string> &c)
+{
+    set<string>::iterator p,q;
+    int i=0;
+    int len=b.size();
+    for(p=b.begin(),q=c.begin();i<len-1;p++,q++,i++)
+    if(*p!=*q)
+    return false;
+    a=b;
+    a.insert(*c.rbegin());
+    if(cut(a))
+    return true;
+    else return false;
+}
+bool judge(const set<string> &a,int s)
+{
+    int sum=0;
+    set<string> tmp;
+    QAQ(i,ans.size())
+    if(ans[i].a.size()>=a.size())
+    {
+        tmp.clear();
+        set_intersection(ans[i].a.begin(),ans[i].a.end(),a.begin(),a.end(),inserter(tmp,tmp.begin()));
+        if(tmp.size()==a.size())
+        sum++;
+    }
+    if(sum>=s)
+    {
+        hashmap[a]=sum;
+        return true;
+    }
+    else return false;
+}
+void calculate()
+{
+    if(fre_item[1].size()==0)
+    {
+        fre_item_index=0;
+        return;
+    }
+    else if(fre_item[1].size()==1)
+    {
+        fre_item_index=1;
+        return;
+    }
+    set<string> tmp;
+    for(unsigned int k=2;k<=sum;k++)
+    {
+        unsigned int a=fre_item[k-1].size();
+        if(a>=2)
+        {
+            QAQ(i,a)
+            for(unsigned int j=i+1;j<a;j++)
+            {
+                tmp.clear();
+                if(find(tmp,fre_item[k-1][i],fre_item[k-1][j]))
+                if(judge(tmp,s))
+                {
+                    fre_item[k].push_back(tmp);
+                    fre_item_index=k;
+                }
+            }
+        }
+    }
+}
+void output()
+{
+    set<string> tmp;
+    int a=fre_item_index;
+    if(a)
+    QAQ(i,fre_item[a].size())
+    {
+        for(map<set<string>,int>::iterator j=hashmap.begin();j!=hashmap.end();j++)
+        {
+            if(fre_item[a][i].size()>j->first.size())
+            {
+                tmp.clear();
+                set_union(fre_item[a][i].begin(),fre_item[a][i].end(),
+                j->first.begin(),j->first.end(),inserter(tmp,tmp.begin()));
+                if(tmp.size()>fre_item[a][i].size())
+                continue;
+                else
+                {
+                    tmp.clear();
+                    set_difference(fre_item[a][i].begin(),fre_item[a][i].end(),
+                    j->first.begin(),j->first.end(),inserter(tmp,tmp.begin()));
+                    for(set<string>::iterator q=j->first.begin();q!=j->first.end();q++)
+                    cout<<*q<<" ";
+                    cout<<"-->"<<" ";
+                    for(set<string>::iterator p=tmp.begin();p!=tmp.end();p++)
+                    cout<<*p<<" ";
+                    cout<<fixed;
+                    cout.precision(2);
+                    cout<<"confidence="<<hashmap[fre_item[a][i]]*100.0/j->second<<'%'<<endl;
+                }
+            }
+        }
+    }
+    else cout<<"No Relation"<<endl;
+}
+int main()
+{
+    setIO();
+    init();
+    calculate();
+    output();
+}
