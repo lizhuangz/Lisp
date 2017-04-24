@@ -1,0 +1,277 @@
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <set>
+#include <map>
+#include <cstdio>
+#include <cmath>
+#include <cstring>
+#include <cstdlib>
+#include <ctype.h>
+#define CLR(x) memset(x,0,sizeof x)
+#define show_memory(x) cout<<sizeof(x)/(1024*1024.0)<<"MB"<<endl
+#define QAQ(i,n) for(unsigned int i=0;i<n;i++)
+using namespace std;
+string src="C:\\Users\\Administrator\\Desktop\\test.txt";
+void setIO(){freopen(src.c_str(),"r",stdin);}
+typedef long long int64;
+static unsigned int len;//总记录数
+vector<vector<set<int>>> difference_matrix;//差异矩阵
+map<int,set<int>> lost_property;//遗失属性
+vector<int> lost_object;//遗失对象
+map<int,set<int>> indifference_object;//无差异对象
+vector<vector<int>> data;//所有数据
+struct pos{
+    int i;
+    int j;
+    string value;
+    pos(int i,int j,string value):i(i),j(j),value(value){};
+};//修改结构体
+vector<pos> change;//一次迭代需要修改的数据集合
+void input()//输入数据（同时初始化遗失属性和遗失对象）
+{
+    vector<string> a;
+    set<int> ans;
+    string b,c;
+    while(getline(cin,b))
+    {
+        QAQ(i,b.size())
+        {
+            while(b[i]==' '&&i<b.size()) i++;
+            while(b[i]!=' '&&i<b.size())
+            {
+                c+=b[i];
+                i++;
+            }
+            a.push_back(c);
+            if(c=="*")
+            {
+                ans.insert(a.size()-1);
+            }
+            c.clear();
+        }
+        if(a.size())
+        {
+            data.push_back(a);
+            a.clear();
+        }
+        if(ans.size())
+        {
+            lost_property[data.size()-1]=ans;
+            lost_object.push_back(data.size()-1);
+            ans.clear();
+        }
+    }
+    len=data.size();
+}
+void output()//输出数据
+{
+    QAQ(i,len)
+    {
+        QAQ(j,data[i].size())
+        cout<<data[i][j]<<" ";
+        cout<<endl;
+    }
+}
+void find_difference_object(vector<string> &a,vector<string> &b,set<int> &c)//找差异集合
+{
+    QAQ(i,a.size())
+    {
+        if(a[i]!=b[i]&&a[i]!="*"&&b[i]!="*")
+        c.insert(i);
+    }
+    if(!c.size())
+    c.insert(-1);
+}
+void find_difference_object(vector<string> &a,vector<string> &b,set<int> &c,set<int> &d,bool &f)//找特定属性的差异集合
+{
+    for(set<int>::iterator p=d.begin();p!=d.end();p++)
+    if(a[*p]!=b[*p]&&a[*p]!="*"&&b[*p]!="*")
+    {
+        f=true;
+        c.insert(*p);
+    }
+    if(f) c.erase(-1);
+}
+void init()//初始化
+{
+    difference_matrix.resize(len);
+    set<int> a;
+    a.insert(-1);
+    QAQ(i,len)
+    {
+        difference_matrix[i].resize(len);
+        difference_matrix[i][i]=a;
+    }
+    QAQ(i,len)
+    for(unsigned int j=i+1;j<len;j++)
+    {
+        a.clear();
+        find_difference_object(data[i],data[j],a);
+        difference_matrix[i][j]=difference_matrix[j][i]=a;
+    }
+}
+void show()//显示所有信息调试专用
+{
+    QAQ(i,len)
+    {
+        QAQ(j,len)
+        {
+            for(set<int>::iterator p=difference_matrix[i][j].begin();p!=difference_matrix[i][j].end();p++)
+            cout<<*p<<" ";
+            cout<<"     ";
+        }
+        cout<<endl;
+    }
+    for(map<int,set<int>>::iterator p=lost_property.begin();p!=lost_property.end();p++)
+    {
+        cout<<p->first<<" ";
+        for(set<int>::iterator q=p->second.begin();q!=p->second.end();q++)
+        cout<<*q<<" ";
+        cout<<endl;
+    }
+    QAQ(i,lost_object.size())
+    cout<<lost_object[i]<<endl;
+    for(map<int,set<int>>::iterator p=indifference_object.begin();p!=indifference_object.end();p++)
+    {
+        cout<<p->first<<" ";
+        for(set<int>::iterator q=p->second.begin();q!=p->second.end();q++)
+        cout<<*q<<" ";
+        cout<<endl;
+    }
+}
+void update()//（每次迭代成功后需要修改差异矩阵，遗失属性，遗失对象，原始数据）
+{
+    QAQ(i,change.size()) data[change[i].i][change[i].j]=change[i].value;//修改原始数据
+    set<int> a;
+    QAQ(i,len)
+    for(unsigned int j=i+1;j<len;j++)
+    {
+        a=difference_matrix[i][j];
+        bool f=false;
+        vector<int>::iterator p=find(lost_object.begin(),lost_object.end(),i);
+        vector<int>::iterator q=find(lost_object.begin(),lost_object.end(),j);
+        if(p==lost_object.end()&&q==lost_object.end())
+        continue;
+        else if(p==lost_object.end())
+        find_difference_object(data[i],data[j],a,lost_property[*q],f);
+        else if(q==lost_object.end())
+        find_difference_object(data[i],data[j],a,lost_property[*p],f);
+        else
+        {
+            set<int> tmp;
+            set_union(lost_property[*p].begin(),lost_property[*p].end(),lost_property[*q].begin()
+            ,lost_property[*q].end(),inserter(tmp,tmp.begin()));
+            find_difference_object(data[i],data[j],a,tmp,f);
+        }
+        if(f)
+        difference_matrix[i][j]=difference_matrix[j][i]=a;
+    }//修改差异矩阵（利用启发式性质）
+    QAQ(i,change.size())
+    {
+        lost_property[change[i].i].erase(change[i].j);//修改遗失属性
+        if(lost_property[change[i].i].size()==0)
+        {
+            lost_property.erase(change[i].i);
+            vector<int>::iterator p=find(lost_object.begin(),lost_object.end(),change[i].i);
+            lost_object.erase(p);//修改遗失对象
+        }
+    }
+    change.clear();
+}
+void find_difference_matrix()//迭代生成（算法核心）
+{
+    bool f=false;
+    set<int> a,b;
+    a.insert(-1);
+    QAQ(i,lost_object.size())
+    {
+        unsigned int k=lost_object[i];
+        QAQ(j,len)
+        {
+            if(j==k)
+            continue;
+            if(difference_matrix[k][j]==a)
+            b.insert(j);
+        }
+        indifference_object[k]=b;
+        b.clear();
+    }//计算无差异对象
+    QAQ(i,lost_object.size())
+    {
+        unsigned int k=lost_object[i];
+        for(set<int>::iterator t=lost_property[k].begin();t!=lost_property[k].end();t++)
+        {
+            if(indifference_object[k].size()==1)
+            {
+                set<int>::iterator p=indifference_object[k].begin();
+                if(data[*p][*t]!="*")
+                {
+                    pos a(k,*t,data[*p][*t]);
+                    change.push_back(a);
+                    f=true;
+                }
+            }
+            else
+            {
+                bool flag=false;
+                set<int>::iterator p=indifference_object[k].begin();
+                while(p!=indifference_object[k].end())
+                {
+                    set<int>::iterator q=p;
+                    q++;
+                    while(q!=indifference_object[k].end())
+                    {
+                        if(data[*p][*t]!="*"&&data[*q][*t]!="*"&&data[*p][*t]!=data[*q][*t])
+                        {
+                            flag=true;
+                            break;
+                        }
+                        else
+                        q++;
+                    }
+                    if(flag)
+                    break;
+                    p++;
+                }
+                if(!flag)
+                {
+                    for(set<int>::iterator p=indifference_object[k].begin();p!=indifference_object[k].end();p++)
+                    {
+                        if(data[*p][*t]!="*")
+                        {
+                            pos a(k,*t,data[*p][*t]);
+                            change.push_back(a);
+                            f=true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if(f)
+    {
+        update();
+        find_difference_matrix();
+    }
+}
+void delete_lost_object()
+{
+    for(vector<int>::reverse_iterator p=lost_object.rbegin();p!=lost_object.rend();p++)
+    data.erase(data.begin()+*p);
+    len=data.size();
+}//迭代结束后删除剩余的遗失对象
+void work()
+{
+    init();
+    find_difference_matrix();
+    delete_lost_object();
+}
+int main()
+{
+    setIO();
+    input();
+    work();
+    output();
+}
